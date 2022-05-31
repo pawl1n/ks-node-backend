@@ -1,4 +1,5 @@
 const Category = require('../models/Category')
+const mongoose = require('mongoose')
 
 module.exports.getAll = async function (req, res) {
 	const categoryList = await Category.find()
@@ -11,6 +12,12 @@ module.exports.getAll = async function (req, res) {
 }
 
 module.exports.getById = async function (req, res) {
+	if (!mongoose.isValidObjectId(req.params.id)) {
+		res.status(400).json({
+			success: false,
+			message: 'Invalid category ID'
+		})
+	}
 	const category = await Category.findById(req.params.id)
 	if (!category) {
 		res.status(500).json({
@@ -75,6 +82,12 @@ module.exports.update = async function (req, res) {
 }
 
 module.exports.remove = function (req, res) {
+	if (!mongoose.isValidObjectId(req.params.id)) {
+		res.status(400).json({
+			success: false,
+			message: 'Invalid category ID'
+		})
+	}
 	Category.findByIdAndRemove(req.params.id)
 		.then((category) => {
 			if (category) {
