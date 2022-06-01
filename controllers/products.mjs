@@ -77,7 +77,7 @@ export function getByCategoryId(req, res) {
 }
 
 export function create(req, res) {
-	if (!mongoose.isValidObjectId(req.params.id)) {
+	if (!mongoose.isValidObjectId(req.body.category)) {
 		return res.status(404).json({
 			success: false,
 			message: 'Invalid category ID'
@@ -88,7 +88,7 @@ export function create(req, res) {
 			if (!category) {
 				return res.status(400).json({
 					success: false,
-					message: 'Can`t find category with given ID'
+					message: `Can't find category with given ID`
 				})
 			}
 			const product = new Product({
@@ -105,7 +105,7 @@ export function create(req, res) {
 					return res.status(201).json({
 						success: true,
 						message: '',
-						date: product
+						data: product
 					})
 				})
 				.catch((err) => {
@@ -116,7 +116,7 @@ export function create(req, res) {
 				})
 		})
 		.catch((err) => {
-			return res.status(400).json({
+			return res.status(500).json({
 				success: false,
 				message: err
 			})
