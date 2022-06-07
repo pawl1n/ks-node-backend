@@ -205,7 +205,7 @@ export async function login(req, res) {
       message: '',
       data: {
         user: user.email,
-        token: `Bearer: ${token}`
+        token: `Bearer ${token}`
       }
     })
   } else {
