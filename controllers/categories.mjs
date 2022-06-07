@@ -22,7 +22,7 @@ export function getById(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid category ID'
+      message: 'Неправильний ID категорії'
     })
   }
   Category.findById(req.params.id)
@@ -30,7 +30,7 @@ export function getById(req, res) {
       if (!category) {
         return res.status(404).json({
           success: false,
-          message: 'The category with geven ID was not found'
+          message: 'Категорію з наданим ID не знайдено'
         })
       }
       return res.status(200).json({
@@ -55,7 +55,7 @@ export async function create(req, res) {
   if (candidate) {
     return res.status(409).json({
       success: false,
-      message: 'Category with this name exists'
+      message: 'Така категорія вже існує'
     })
   } else {
     const category = new Category({
@@ -66,25 +66,37 @@ export async function create(req, res) {
     category
       .save()
       .then(() => {
-        return res.status(201).json(category)
+        return res.status(201).json({
+          success: true,
+          message: '',
+          data: category
+        })
       })
       .catch((err) => {
         return res.status(500).json({
           success: false,
           message: err
         })
-        console.log(err)
       })
   }
 }
 
-export function update(req, res) {
+export async function update(req, res) {
+  const candidate = await Category.findOne({
+    name: req.body.name
+  })
+  if (candidate) {
+    return res.status(409).json({
+      success: false,
+      message: 'Така категорія вже існує'
+    })
+  }
   Category.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true })
     .then((category) => {
       if (!category) {
         return res.status(404).json({
           success: false,
-          message: 'The category with geven ID was not found'
+          message: 'Категорію з наданим ID не знайдено'
         })
       }
       return res.status(200).json({
@@ -102,10 +114,10 @@ export function update(req, res) {
 }
 
 export function remove(req, res) {
-  if (!isValidObjectId(req.params.id)) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid category ID'
+      message: 'Неправильний ID категорії'
     })
   }
   Category.findByIdAndRemove(req.params.id)
@@ -113,12 +125,12 @@ export function remove(req, res) {
       if (category) {
         return res.status(200).json({
           success: true,
-          message: 'The category deleted'
+          message: 'Категорію видалено'
         })
       } else {
         return res.status(404).json({
           success: false,
-          message: 'Category not found'
+          message: 'Категорію не знайдено'
         })
       }
     })
