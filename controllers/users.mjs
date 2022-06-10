@@ -1,5 +1,4 @@
 import User from '../models/User.mjs'
-import Order from '../models/Order.mjs'
 import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'

@@ -14,6 +14,9 @@ import categoriesRouter from './routes/categories.mjs'
 import ordersRouter from './routes/orders.mjs'
 import productsRouter from './routes/products.mjs'
 import usersRouter from './routes/users.mjs'
+import purchasesRouter from './routes/purchases.mjs'
+import providersRouter from './routes/providers.mjs'
+
 import errorHandler from './middleware/errorHandler.mjs'
 
 mongoose
@@ -36,6 +39,8 @@ app.use('/api/categories', categoriesRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/users', usersRouter)
+app.use('/api/purchases', purchasesRouter)
+app.use('/api/providers', providersRouter)
 app.use('/uploads', express.static('uploads'))
 
 app.use(errorHandler)
