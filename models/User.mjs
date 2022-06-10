@@ -2,7 +2,8 @@ import mongoose from 'mongoose'
 
 const userSchema = new mongoose.Schema({
   name: {
-    type: String
+    type: String,
+    required: true
   },
   email: {
     type: String,
@@ -10,8 +11,7 @@ const userSchema = new mongoose.Schema({
     unique: true
   },
   password: {
-    type: String,
-    required: true
+    type: String
   },
   phone: {
     type: String
@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
       type: String,
       default: ''
     },
-    zip: {
+    postal: {
       type: String,
       default: ''
     },
@@ -33,7 +33,7 @@ const userSchema = new mongoose.Schema({
       type: String,
       default: ''
     },
-    appartament: {
+    building: {
       type: String,
       default: ''
     },

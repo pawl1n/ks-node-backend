@@ -14,11 +14,12 @@ import categoriesRouter from './routes/categories.mjs'
 import ordersRouter from './routes/orders.mjs'
 import productsRouter from './routes/products.mjs'
 import usersRouter from './routes/users.mjs'
+import errorHandler from './middleware/errorHandler.mjs'
 
 mongoose
-	.connect(process.env.MONGODB_URI)
-	.then(() => console.log('MongoDB connected.'))
-	.catch((err) => console.log(err))
+  .connect(process.env.MONGODB_URI)
+  .then(() => console.log('MongoDB connected.'))
+  .catch((err) => console.log(err))
 
 // Middleware
 app.use(urlencoded({ extended: true }))
@@ -35,8 +36,11 @@ app.use('/api/categories', categoriesRouter)
 app.use('/api/orders', ordersRouter)
 app.use('/api/products', productsRouter)
 app.use('/api/users', usersRouter)
+app.use('/uploads', express.static('uploads'))
+
+app.use(errorHandler)
 
 const port = process.env.PORT
 app.listen(port, () => {
-	console.log(`Server is running on http://kishka-strybaie.ua:${port}`)
+  console.log(`Server is running on http://kishka-strybaie.ua:${port}`)
 })

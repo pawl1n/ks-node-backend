@@ -1,6 +1,7 @@
 import Category from '../models/Category.mjs'
 import Product from '../models/Product.mjs'
 import mongoose from 'mongoose'
+import { unlinkSync } from 'fs'
 
 export function getAll(req, res) {
   let filter = {}
@@ -31,7 +32,7 @@ export function getById(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid product ID'
+      message: 'Неправильний ID товара'
     })
   }
   Product.findById(req.params.id)
@@ -40,7 +41,7 @@ export function getById(req, res) {
       if (!product) {
         return res.status(404).json({
           success: false,
-          message: 'The product with geven ID was not found'
+          message: 'Товар з наданим ID не знайдено'
         })
       }
       return res.status(200).json({
@@ -58,27 +59,45 @@ export function getById(req, res) {
 }
 
 export function create(req, res) {
-  if (!mongoose.isValidObjectId(req.body.category)) {
-    return res.status(404).json({
+  if (!req.body.category) {
+    return res.status(400).json({
       success: false,
-      message: 'Invalid category ID'
+      message: 'Необхідно ввести категорію'
     })
   }
-  Category.findById(req.body.category)
+
+  const categoryId = req.body.category?._id
+    ? req.body.category._id
+    : req.body.category
+
+  if (!mongoose.isValidObjectId(categoryId)) {
+    return res.status(404).json({
+      success: false,
+      message: 'Неправильний ID категорії'
+    })
+  }
+
+  Category.findById(categoryId)
     .then((category) => {
       if (!category) {
         return res.status(400).json({
           success: false,
-          message: `Can't find category with given ID`
+          message: `Не вдалося знайти категорію за наданим ID`
         })
       }
+      let files = []
+      req.files?.forEach((file) => {
+        files.push(file.path)
+      })
       const product = new Product({
         name: req.body.name,
         description: req.body.description,
-        images: req.body.images,
+        images: files ? files : null,
         price: req.body.price,
-        category: req.body.category,
-        article: req.body.article
+        category: categoryId,
+        article: req.body.article,
+        stock: req.body.stock,
+        size: req.body.size
       })
       product
         .save()
@@ -97,6 +116,7 @@ export function create(req, res) {
         })
     })
     .catch((err) => {
+      console.log(err)
       return res.status(500).json({
         success: false,
         message: err
@@ -105,7 +125,28 @@ export function create(req, res) {
 }
 
 export function update(req, res) {
-  Product.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true })
+  let files = []
+  req.files?.forEach((file) => {
+    files.push(file.path)
+  })
+  files = files.concat(req.body.images || [])
+  console.log(files)
+
+  Product.findByIdAndUpdate(
+    req.params.id,
+    {
+      name: req.body.name,
+      description: req.body.description,
+      images: files,
+      price: req.body.price,
+      category: req.body.category,
+      article: req.body.article,
+      stock: req.body.stock,
+      size: req.body.size
+    },
+    { new: true }
+  )
+    .populate('category')
     .then((product) => {
       if (!product) {
         return res.status(200).json({
@@ -113,6 +154,10 @@ export function update(req, res) {
           message: 'The product with geven ID was not found'
         })
       }
+      console.log(req.body.removedImages)
+      req.body.removedImages?.forEach((file) => {
+        unlinkSync(image)
+      })
       return res.status(200).json({
         success: true,
         message: '',
@@ -120,6 +165,7 @@ export function update(req, res) {
       })
     })
     .catch((err) => {
+      console.log(err)
       return res.status(500).json({
         success: false,
         message: err
@@ -131,20 +177,23 @@ export function remove(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid product ID'
+      message: 'Неправильний ID товара'
     })
   }
   Product.findByIdAndRemove(req.params.id)
     .then((product) => {
       if (product) {
+        product.images?.forEach((image) => {
+          unlinkSync(image)
+        })
         return res.status(200).json({
           success: true,
-          message: 'The product deleted'
+          message: 'Товар видалено'
         })
       } else {
         return res.status(404).json({
           success: false,
-          message: 'Product not found'
+          message: 'Товар не знайдено'
         })
       }
     })

@@ -1,4 +1,5 @@
 import User from '../models/User.mjs'
+import Order from '../models/Order.mjs'
 import bcrypt from 'bcryptjs'
 import mongoose from 'mongoose'
 import jwt from 'jsonwebtoken'
@@ -26,7 +27,7 @@ export function getById(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid user ID'
+      message: 'Направильний ID користувача'
     })
   }
   User.findById(req.params.id)
@@ -35,7 +36,7 @@ export function getById(req, res) {
       if (!user) {
         return res.status(200).json({
           success: false,
-          message: 'User with geven ID was not found'
+          message: 'Не знайдено користувача з наданим ID'
         })
       }
       return res.status(200).json({
@@ -61,7 +62,7 @@ export async function create(req, res) {
   if (candidate) {
     return res.status(409).json({
       success: false,
-      message: 'User with this email exists'
+      message: 'Користувач з такою поштою вже існує'
     })
   } else {
     const user = new User({
@@ -70,14 +71,7 @@ export async function create(req, res) {
       password: bcrypt.hashSync(req.body.password, saltRounds),
       phone: req.body.phone,
       isAdmin: req.body.isAdmin,
-      shipping: {
-        city: req.body.city,
-        zip: req.body.zip,
-        street: req.body.street,
-        appartament: req.body.appartament,
-        department: req.body.department,
-        shippingMethod: req.body.shippingMethod
-      }
+      shipping: req.body.shipping
     })
 
     user
@@ -109,14 +103,15 @@ export function update(req, res) {
         : undefined,
       phone: req.body.phone,
       isAdmin: req.body.isAdmin,
-      shipping: {
-        city: req.body.shipping.city,
-        zip: req.body.shipping.zip,
-        street: req.body.shipping.street,
-        appartament: req.body.shipping.appartament,
-        department: req.body.shipping.department,
-        shippingMethod: req.body.shipping.shippingMethod
-      }
+      shipping: req.body.shipping
+      // {
+      //   city: req.body.shipping.city,
+      //   zip: req.body.shipping.zip,
+      //   street: req.body.shipping.street,
+      //   appartament: req.body.shipping.appartament,
+      //   department: req.body.shipping.department,
+      //   shippingMethod: req.body.shipping.shippingMethod
+      // }
     },
     {
       new: true
@@ -127,7 +122,7 @@ export function update(req, res) {
       if (!user) {
         return res.status(200).json({
           success: false,
-          message: 'User with given ID was not found'
+          message: 'Не знайдено користувача з наданим ID'
         })
       }
       return res.status(200).json({
@@ -148,7 +143,7 @@ export function remove(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
-      message: 'Invalid user ID'
+      message: 'Неправильний ID'
     })
   }
   User.findByIdAndRemove(req.params.id)
@@ -156,12 +151,12 @@ export function remove(req, res) {
       if (user) {
         return res.status(200).json({
           success: true,
-          message: 'The user deleted'
+          message: 'Користувача видалено'
         })
       } else {
         return res.status(404).json({
           success: false,
-          message: 'User not found'
+          message: 'Користувача не знайдено'
         })
       }
     })
