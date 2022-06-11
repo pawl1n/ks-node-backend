@@ -1,5 +1,6 @@
 import Purchase from '../models/Purchase.mjs'
 import Provider from '../models/Provider.mjs'
+import Product from '../models/Product.mjs'
 import mongoose from 'mongoose'
 
 export function getAll(req, res) {
@@ -97,77 +98,190 @@ export async function create(req, res) {
   })
   const maxPurchase = lastPurchase ? lastPurchase.number + 1 : 1
 
+  const session = await mongoose.startSession()
+  session.startTransaction()
+  // insecure
+  let totalPrice = 0
+  req.body.list.forEach((item) => {
+    totalPrice += +item.cost * +item.quantity
+  })
   const purchase = new Purchase({
     number: maxPurchase,
     list: req.body.list,
-    provider: req.body.provider
+    provider: req.body.provider,
+    totalPrice: totalPrice
   })
-  purchase
-    .save()
-    .then(() => {
+
+  try {
+    const savedPurchase = await purchase.save({ session })
+    let error = await updateProductStock(null, savedPurchase, session)
+    if (error) {
+      await session.abortTransaction()
+      session.endSession()
+      return res.status(400).json({
+        success: false,
+        message: error
+      })
+    } else {
+      await session.commitTransaction()
+      session.endSession()
       return res.status(201).json({
         success: true,
         message: '',
         data: purchase
       })
+    }
+  } catch (err) {
+    console.log(err)
+    if (session.inTransaction()) {
+      await session.abortTransaction()
+    }
+    session.endSession()
+    return res.status(500).json({
+      success: false,
+      message: err
     })
-    .catch((err) => {
-      console.log(err)
-      return res.status(500).json({
-        success: false,
-        message: err
-      })
-    })
+  }
 }
 
-export function update(req, res) {
-  Purchase.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true })
-    .then((purchase) => {
-      if (!purchase) {
-        return res.status(404).json({
-          success: false,
-          message: 'Закупку не знайдено'
-        })
-      }
-      return res.status(200).json({
-        success: true,
-        message: '',
-        data: purchase
-      })
+export async function update(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(404).json({
+      success: false,
+      message: 'Неправильний ID'
     })
-    .catch((err) => {
-      return res.status(500).json({
+  }
+  const session = await mongoose.startSession()
+  session.startTransaction()
+  // insecure
+  let totalPrice = 0
+  req.body.list.forEach((item) => {
+    totalPrice += +item.cost * +item.quantity
+  })
+  try {
+    const purchase = await Purchase.findByIdAndUpdate(
+      req.params.id,
+      {
+        $set: req.body,
+        totalPrice: totalPrice
+      },
+      { session }
+    )
+    if (!purchase) {
+      session.endSession()
+      return res.status(404).json({
         success: false,
-        message: err
+        message: 'Закупку не знайдено'
       })
+    }
+    let error = await updateProductStock(purchase, req.body, session)
+    if (error) {
+      await session.abortTransaction()
+      session.endSession()
+      return res.status(400).json({
+        success: false,
+        message: error
+      })
+    }
+    await session.commitTransaction()
+    session.endSession()
+    return res.status(200).json({
+      success: true,
+      message: '',
+      data: req.body
     })
+  } catch (err) {
+    if (session.inTransaction()) {
+      await session.abortTransaction()
+    }
+    session.endSession()
+    return res.status(500).json({
+      success: false,
+      message: err
+    })
+  }
 }
 
-export function remove(req, res) {
+export async function remove(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
       message: 'Неправильний ID'
     })
   }
-  Purchase.findByIdAndRemove(req.params.id)
-    .then((purchase) => {
-      if (purchase) {
-        return res.status(200).json({
-          success: true,
-          message: 'Закупку видалено'
-        })
-      } else {
-        return res.status(404).json({
+  const session = await mongoose.startSession()
+  session.startTransaction()
+
+  try {
+    const purchase = await Purchase.findByIdAndRemove(req.params.id, {
+      session
+    })
+    if (purchase) {
+      let error = await updateProductStock(purchase, null, session)
+      if (error) {
+        await session.abortTransaction()
+        session.endSession()
+        return res.status(400).json({
           success: false,
-          message: 'Закупку не знайдено'
+          message: error
         })
       }
-    })
-    .catch((err) => {
-      return res.status(400).json({
-        success: false,
-        message: err
+      await session.commitTransaction()
+      session.endSession()
+      return res.status(200).json({
+        success: true,
+        message: 'Закупку видалено'
       })
+    } else {
+      session.endSession()
+      return res.status(404).json({
+        success: false,
+        message: 'Закупку не знайдено'
+      })
+    }
+  } catch (err) {
+    if (session.inTransaction()) {
+      await session.abortTransaction()
+    }
+    session.endSession()
+    return res.status(400).json({
+      success: false,
+      message: err
     })
+  }
+}
+
+async function updateProductStock(oldPurchase, purchase, session) {
+  if (oldPurchase && oldPurchase.list) {
+    for (let item of oldPurchase.list) {
+      const product = await Product.findById(item.product, null, { session })
+      if (!product) {
+        return `Не знайдено товар ${item.product}`
+      } else {
+        product.stock = Number(product.stock) - Number(item.quantity)
+        if (product.stock < 0) {
+          return `Недостатньо товару "${product.name}" у кількості ${Math.abs(
+            product.stock
+          )} шт.`
+        }
+        await Product.findByIdAndUpdate(item.product, product, {
+          session
+        })
+      }
+    }
+  }
+  if (purchase && purchase.list) {
+    for (let item of purchase.list) {
+      const product = await Product.findById(item.product, null, { session })
+      if (!product) {
+        return `Не знайдено товар ${item.product}`
+      } else {
+        product.stock = Number(product.stock) + Number(item.quantity)
+        await Product.findByIdAndUpdate(item.product, product, {
+          session
+        })
+      }
+    }
+  }
+  return ''
 }

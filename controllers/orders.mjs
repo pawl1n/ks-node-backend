@@ -1,9 +1,7 @@
-import Order from '../models/Order.mjs'
+import Order, { statuses, methods } from '../models/Order.mjs'
 import User from '../models/User.mjs'
+import Product from '../models/Product.mjs'
 import mongoose from 'mongoose'
-
-const statuses = ['Pending', 'Processing', 'Shipped', 'Delivered', 'Canceled']
-const methods = ['PickupInSumy', 'NovaPoshta']
 
 export function getStatuses(req, res) {
   res.status(200).json({
@@ -42,8 +40,8 @@ export function getAll(req, res) {
 
   Order.find(filter)
     .sort({ date: -1 })
-    .skip(+req.query.offset)
-    .limit(+req.query.limit)
+    // .skip(+req.query.offset)
+    // .limit(+req.query.limit)
     .populate('user', 'name email')
     .populate({
       path: 'list',
@@ -111,17 +109,23 @@ export async function create(req, res) {
     })
   }
 
-  if (!statuses.includes(req.body.status)) {
+  if (req.body.status && !statuses.includes(req.body.status)) {
     return res.status(404).json({
       success: false,
       message: 'Не знайдено статус'
     })
   }
-  if (!methods.includes(req.body.shipping.shippingMethod)) {
+  if (
+    req.body.shipping.shippingMethod &&
+    !methods.includes(req.body.shipping.shippingMethod)
+  ) {
     return res.status(404).json({
       success: false,
       message: 'Не знайдено метод доставки'
     })
+  }
+  if (!req.body.shipping.shippingMethod) {
+    req.body.shipping.shippingMethod = 'Other'
   }
 
   const lastOrder = await Order.findOne().sort({
@@ -129,90 +133,202 @@ export async function create(req, res) {
   })
   const maxOrder = lastOrder ? lastOrder.order + 1 : 1
 
+  // insecure
+  let totalPrice = 0
+  req.body.list.forEach((item) => {
+    totalPrice += +item.cost * +item.quantity
+  })
+
   const order = new Order({
     order: maxOrder,
     list: req.body.list,
     user: req.body.user,
-    shipping: req.body.shipping
+    shipping: req.body.shipping,
+    totalPrice: totalPrice
   })
-  order
-    .save()
-    .then(() => {
+
+  const session = await mongoose.startSession()
+  session.startTransaction()
+  try {
+    const savedOrder = await order.save({ session })
+    let error = await updateProductStock(null, savedOrder, session)
+    if (error) {
+      await session.abortTransaction()
+      session.endSession()
+      return res.status(400).json({
+        success: false,
+        message: error
+      })
+    } else {
+      await session.commitTransaction()
+      session.endSession()
       return res.status(201).json({
         success: true,
         message: '',
-        data: order
+        data: savedOrder
       })
+    }
+  } catch (err) {
+    console.log(err)
+    if (session.inTransaction()) {
+      await session.abortTransaction()
+    }
+    session.endSession()
+    return res.status(500).json({
+      success: false,
+      message: err
     })
-    .catch((err) => {
-      return res.status(500).json({
-        success: false,
-        message: err
-      })
-    })
+  }
 }
 
-export function update(req, res) {
-  if (!statuses.includes(req.body.status)) {
+export async function update(req, res) {
+  if (!mongoose.isValidObjectId(req.params.id)) {
+    return res.status(404).json({
+      success: false,
+      message: 'Неправильний ID'
+    })
+  }
+  if (req.body.status && !statuses.includes(req.body.status)) {
     return res.status(404).json({
       success: false,
       message: 'Не знайдено статус'
     })
   }
-  if (!methods.includes(req.body.shipping.shippingMethod)) {
+  if (
+    req.body.shipping.shippingMethod &&
+    !methods.includes(req.body.shipping.shippingMethod)
+  ) {
     return res.status(404).json({
       success: false,
       message: 'Не знайдено метод доставки'
     })
   }
+  const session = await mongoose.startSession()
+  session.startTransaction()
+  // insecure
+  let totalPrice = 0
+  req.body.list.forEach((item) => {
+    totalPrice += +item.cost * +item.quantity
+  })
 
-  Order.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true })
-    .then((order) => {
-      if (!order) {
-        return res.status(404).json({
-          success: false,
-          message: 'The order with geven ID was not found'
-        })
-      }
-      return res.status(200).json({
-        success: true,
-        message: '',
-        data: order
-      })
-    })
-    .catch((err) => {
-      return res.status(500).json({
+  try {
+    const order = await Order.findByIdAndUpdate(
+      req.params.id,
+      { $set: req.body, totalPrice },
+      { session }
+    )
+    if (!order) {
+      session.endSession()
+      return res.status(404).json({
         success: false,
-        message: err
+        message: 'Замовлення не знайдено'
       })
+    }
+    let error = await updateProductStock(order, req.body, session)
+    if (error) {
+      await session.abortTransaction()
+      session.endSession()
+      return res.status(400).json({
+        success: false,
+        message: error
+      })
+    }
+    await session.commitTransaction()
+    session.endSession()
+    return res.status(200).json({
+      success: true,
+      message: '',
+      data: req.body
     })
+  } catch (err) {
+    if (session.inTransaction()) {
+      await session.abortTransaction()
+    }
+    session.endSession()
+    console.log(err)
+    return res.status(500).json({
+      success: false,
+      message: err
+    })
+  }
 }
 
-export function remove(req, res) {
+export async function remove(req, res) {
   if (!mongoose.isValidObjectId(req.params.id)) {
     return res.status(400).json({
       success: false,
       message: 'Неправильний ID'
     })
   }
-  Order.findByIdAndRemove(req.params.id)
-    .then((order) => {
-      if (order) {
-        return res.status(200).json({
-          success: true,
-          message: 'Замовлення видалено'
-        })
-      } else {
-        return res.status(404).json({
+  const session = await mongoose.startSession()
+  session.startTransaction()
+
+  try {
+    const order = await Order.findByIdAndRemove(req.params.id, { session })
+    if (order) {
+      let error = await updateProductStock(order, null, session)
+      if (error) {
+        await session.abortTransaction()
+        session.endSession()
+        return res.status(400).json({
           success: false,
-          message: 'Замовлення не знайдено'
+          message: error
         })
       }
-    })
-    .catch((err) => {
-      return res.status(400).json({
-        success: false,
-        message: err
+      await session.commitTransaction()
+      session.endSession()
+      return res.status(200).json({
+        success: true,
+        message: 'Замовлення видалено'
       })
+    } else {
+      session.endSession()
+      return res.status(404).json({
+        success: false,
+        message: 'Замовлення не знайдено'
+      })
+    }
+  } catch (err) {
+    if (session.inTransaction()) {
+      await session.abortTransaction()
+    }
+    session.endSession()
+    console.log(err)
+    return res.status(400).json({
+      success: false,
+      message: err
     })
+  }
+}
+
+async function updateProductStock(oldOrder, order, session) {
+  const canceled = 'Canceled'
+  if (oldOrder && oldOrder.list && oldOrder.status != canceled) {
+    for (let item of oldOrder.list) {
+      const product = await Product.findById(item.product)
+      if (!product) {
+        return `Не знайдено товар ${item.product}`
+      } else {
+        product.stock = Number(product.stock) + Number(item.quantity)
+        await Product.findByIdAndUpdate(item.product, product, { session })
+      }
+    }
+  }
+  if (order && order.list && order.status != canceled) {
+    for (let item of order.list) {
+      const product = await Product.findById(item.product)
+      if (!product) {
+        return `Не знайдено товар ${item.product}`
+      } else {
+        product.stock = Number(product.stock) - Number(item.quantity)
+        if (product.stock < 0) {
+          return `Недостатньо товару "${product.name}" у кількості ${Math.abs(
+            product.stock
+          )} шт.`
+        }
+        await Product.findByIdAndUpdate(item.product, product, { session })
+      }
+    }
+  }
+  return ''
 }

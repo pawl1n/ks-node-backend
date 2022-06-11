@@ -1,5 +1,14 @@
 import mongoose from 'mongoose'
 
+export const statuses = [
+  'Pending',
+  'Processing',
+  'Shipped',
+  'Delivered',
+  'Canceled'
+]
+export const methods = ['PickupInSumy', 'NovaPoshta', 'Other']
+
 const orderSchema = new mongoose.Schema({
   date: {
     type: Date,
@@ -11,6 +20,7 @@ const orderSchema = new mongoose.Schema({
   },
   status: {
     type: String,
+    enum: statuses,
     default: 'Pending'
   },
   list: [
@@ -55,11 +65,16 @@ const orderSchema = new mongoose.Schema({
       type: String
     },
     shippingMethod: {
-      type: String
+      type: String,
+      enum: methods,
+      default: 'Other'
     },
     phone: {
       type: String
     }
+  },
+  totalPrice: {
+    type: Number
   }
 })
 

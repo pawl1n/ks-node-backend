@@ -54,41 +54,42 @@ export function getById(req, res) {
 }
 
 export async function create(req, res) {
-  const candidate = await User.findOne({
-    email: req.body.email.toLowerCase()
+  if (req.body.email) {
+    const candidate = await User.findOne({
+      email: req.body.email.toLowerCase()
+    })
+
+    if (candidate) {
+      return res.status(409).json({
+        success: false,
+        message: 'Користувач з такою поштою вже існує'
+      })
+    }
+  }
+  const user = new User({
+    name: req.body.name,
+    email: req.body.email ? req.body.email : null,
+    phone: req.body.phone,
+    isAdmin: !!req.body.isAdmin,
+    shipping: req.body.shipping
   })
 
-  if (candidate) {
-    return res.status(409).json({
-      success: false,
-      message: 'Користувач з такою поштою вже існує'
-    })
-  } else {
-    const user = new User({
-      name: req.body.name,
-      email: req.body.email,
-      password: bcrypt.hashSync(req.body.password, saltRounds),
-      phone: req.body.phone,
-      isAdmin: req.body.isAdmin,
-      shipping: req.body.shipping
-    })
-
-    user
-      .save()
-      .then(() => {
-        return res.status(201).json({
-          success: true,
-          message: '',
-          data: user
-        })
+  user
+    .save()
+    .then(() => {
+      return res.status(201).json({
+        success: true,
+        message: '',
+        data: user
       })
-      .catch((err) => {
-        return res.status(500).json({
-          success: false,
-          message: err
-        })
+    })
+    .catch((err) => {
+      console.log(err)
+      return res.status(500).json({
+        success: false,
+        message: err
       })
-  }
+    })
 }
 
 export function update(req, res) {
@@ -222,7 +223,8 @@ export async function register(req, res) {
     })
   } else {
     const user = new User({
-      email: req.body.email,
+      email: req.body.email.toLowerCase(),
+      name: req.body.name,
       password: bcrypt.hashSync(req.body.password, saltRounds)
     })
 
@@ -236,6 +238,7 @@ export async function register(req, res) {
         })
       })
       .catch((err) => {
+        console.log(err)
         return res.status(500).json({
           success: false,
           message: err

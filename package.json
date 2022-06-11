@@ -1,27 +1,27 @@
 {
-	"name": "kishka.strybaie",
-	"version": "1.0.0",
-	"description": "backend",
-	"main": "app.js",
-	"type": "module",
-	"scripts": {
-		"start": "nodemon app.js",
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"author": "",
-	"license": "ISC",
-	"dependencies": {
-		"bcryptjs": "^2.4.3",
-		"cors": "^2.8.5",
-		"dotenv": "^16.0.1",
-		"express": "^4.18.1",
-		"jsonwebtoken": "^8.5.1",
-		"moment": "^2.29.3",
-		"mongoose": "^6.3.4",
-		"morgan": "^1.10.0",
-		"multer": "^1.4.5-lts.1",
-		"nodemon": "^2.0.16",
-		"passport": "^0.6.0",
-		"passport-jwt": "^4.0.0"
-	}
+  "name": "kishka.strybaie",
+  "version": "1.0.0",
+  "description": "backend",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start": "nodemon app.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.1",
+    "express": "^4.18.1",
+    "jsonwebtoken": "^8.5.1",
+    "moment": "^2.29.3",
+    "mongoose": "^6.3.4",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "nodemon": "^2.0.16",
+    "passport": "^0.6.0",
+    "passport-jwt": "^4.0.0"
+  }
 }

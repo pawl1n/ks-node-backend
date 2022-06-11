@@ -29,6 +29,9 @@ const purchaseSchema = new mongoose.Schema({
   provider: {
     ref: 'Provider',
     type: mongoose.Schema.Types.ObjectId
+  },
+  totalPrice: {
+    type: Number
   }
 })
 
