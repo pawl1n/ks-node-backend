@@ -6,9 +6,10 @@ import { unlinkSync } from 'fs'
 export function getAll(req, res) {
   let filter = {}
   if (req.query.categories) {
-    filter = {
-      category: req.query.categories.split(',')
-    }
+    filter.category = req.query.categories.split(',')
+  }
+  if (req.query.controlStock) {
+    filter.stock = { $gt: 0 }
   }
 
   Product.find(filter)
@@ -221,4 +222,50 @@ export function count(req, res) {
         message: err
       })
     })
+}
+
+export async function getPrice(req, res) {
+  try {
+    if (req.body.items) {
+      let ans = {
+        totalPrice: 0,
+        items: []
+      }
+
+      for (let item of req.body.items) {
+        const product = await Product.findById(item.id)
+        if (product.stock < item.quantity) {
+          throw `Недостатньо товару ${product.name} у кількості ${
+            item.quantity - product.stock
+          }`
+        } else {
+          let subTotal = item.quantity * product.price
+          ans.items.push({
+            id: product._id,
+            name: product.name,
+            quantity: item.quantity,
+            stock: product.stock,
+            cost: product.price,
+            subTotal: subTotal,
+            article: product.article,
+            size: product.size
+          })
+          ans.totalPrice += subTotal
+        }
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: '',
+        data: ans
+      })
+    } else {
+      throw 'Неправильно виконаний запит'
+    }
+  } catch (err) {
+    return res.status(500).json({
+      success: false,
+      message: err
+    })
+  }
 }

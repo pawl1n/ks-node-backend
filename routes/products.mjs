@@ -5,7 +5,8 @@ import {
   count,
   create,
   update,
-  remove
+  remove,
+  getPrice
 } from '../controllers/products.mjs'
 import passport from 'passport'
 import uploadOptions from '../middleware/uploads.mjs'
@@ -14,6 +15,7 @@ const router = Router()
 router.get('/', getAll)
 router.get('/:id', getById)
 router.get('/get/count/', count)
+router.post('/get/price/', getPrice)
 router.post(
   '/',
   passport.authenticate('jwt', { session: false }),

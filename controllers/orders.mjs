@@ -2,6 +2,7 @@ import Order, { statuses, methods } from '../models/Order.mjs'
 import User from '../models/User.mjs'
 import Product from '../models/Product.mjs'
 import mongoose from 'mongoose'
+import { sendMail } from '../helpers/mail.mjs'
 
 export function getStatuses(req, res) {
   res.status(200).json({
@@ -95,17 +96,29 @@ export function getById(req, res) {
 }
 
 export async function create(req, res) {
-  if (!mongoose.isValidObjectId(req.body.user)) {
+  let user = undefined
+  if (mongoose.isValidObjectId(req.body.user)) {
+    user = await User.findById(req.body.user)
+    if (!user) {
+      return res.status(400).json({
+        success: false,
+        message: `Клієнта з наданим ID не знайденю`
+      })
+    }
+  } else if (req.body.user.name && req.body.user.email && req.body.user.phone) {
+    user = await User.findOne({ email: req.body.user.email })
+    if (!user) {
+      user = await User.create({
+        name: req.body.user.name,
+        email: req.body.user.email,
+        phone: req.body.user.phone,
+        shipping: req.body.shipping
+      })
+    }
+  } else {
     return res.status(404).json({
       success: false,
-      message: 'Неправильний ID'
-    })
-  }
-  const user = await User.findById(req.body.user)
-  if (!user) {
-    return res.status(400).json({
-      success: false,
-      message: `Користувача з наданим ID не знайденю`
+      message: 'Не знайдено клієнта'
     })
   }
 
@@ -133,16 +146,32 @@ export async function create(req, res) {
   })
   const maxOrder = lastOrder ? lastOrder.order + 1 : 1
 
-  // insecure
   let totalPrice = 0
-  req.body.list.forEach((item) => {
-    totalPrice += +item.cost * +item.quantity
-  })
+  let list = []
+
+  for (let item of req.body.list) {
+    if (item.id) {
+      const product = await Product.findById(item.id)
+      if (!product) {
+        throw `Не знайдено товар ${item.id}`
+      }
+      console.log(product, item)
+      totalPrice += +product.price * +item.quantity
+      list.push({
+        product: product._id,
+        quantity: item.quantity,
+        cost: product.price
+      })
+    } else {
+      totalPrice += +item.cost * +item.quantity
+      list.push(item)
+    }
+  }
 
   const order = new Order({
     order: maxOrder,
-    list: req.body.list,
-    user: req.body.user,
+    list: list,
+    user: user._id,
     shipping: req.body.shipping,
     totalPrice: totalPrice
   })
@@ -160,6 +189,8 @@ export async function create(req, res) {
         message: error
       })
     } else {
+      sendMail(user.name, order, user.email)
+
       await session.commitTransaction()
       session.endSession()
       return res.status(201).json({
@@ -205,7 +236,7 @@ export async function update(req, res) {
   }
   const session = await mongoose.startSession()
   session.startTransaction()
-  // insecure
+
   let totalPrice = 0
   req.body.list.forEach((item) => {
     totalPrice += +item.cost * +item.quantity
