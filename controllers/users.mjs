@@ -212,6 +212,12 @@ export async function login(req, res) {
 }
 
 export async function register(req, res) {
+  if (!req.body.email) {
+    return res.status(400).json({
+      success: false,
+      message: 'Не вказано email'
+    })
+  }
   const candidate = await User.findOne({
     email: req.body.email.toLowerCase()
   })
