@@ -5,7 +5,7 @@
   "main": "app.js",
   "type": "module",
   "scripts": {
-    "start": "pm2 start app.js",
+    "start": "pm2-runtime start ecosystem.config.cjs --env production",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
