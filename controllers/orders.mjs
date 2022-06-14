@@ -97,6 +97,7 @@ export function getById(req, res) {
 
 export async function create(req, res) {
   let user = undefined
+  let customerOrder = false
   if (mongoose.isValidObjectId(req.body.user)) {
     user = await User.findById(req.body.user)
     if (!user) {
@@ -106,7 +107,7 @@ export async function create(req, res) {
       })
     }
   } else if (req.body.user.name && req.body.user.email && req.body.user.phone) {
-    const customerOrder = true
+    customerOrder = true
     user = await User.findOne({ email: req.body.user.email })
     if (!user) {
       user = await User.create({

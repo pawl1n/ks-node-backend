@@ -234,7 +234,12 @@ export async function getPrice(req, res) {
 
       for (let item of req.body.items) {
         const product = await Product.findById(item.id)
-        if (product.stock < item.quantity) {
+        if (!product) {
+          return res.status(404).json({
+            success: false,
+            message: `Товар ${item.name}  не знайдено, будь-ласка, видаліть його з кошику`
+          })
+        } else if (product.stock < item.quantity) {
           throw `Недостатньо товару ${product.name} у кількості ${
             item.quantity - product.stock
           }`
@@ -263,6 +268,7 @@ export async function getPrice(req, res) {
       throw 'Неправильно виконаний запит'
     }
   } catch (err) {
+    console.log(err)
     return res.status(500).json({
       success: false,
       message: err
