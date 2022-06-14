@@ -106,6 +106,7 @@ export async function create(req, res) {
       })
     }
   } else if (req.body.user.name && req.body.user.email && req.body.user.phone) {
+    const customerOrder = true
     user = await User.findOne({ email: req.body.user.email })
     if (!user) {
       user = await User.create({
@@ -189,7 +190,9 @@ export async function create(req, res) {
         message: error
       })
     } else {
-      sendMail(user.name, order, user.email)
+      if (customerOrder) {
+        sendMail(user.name, order, user.email)
+      }
 
       await session.commitTransaction()
       session.endSession()
