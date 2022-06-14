@@ -131,7 +131,7 @@ export function update(req, res) {
     files.push(file.path)
   })
   files = files.concat(req.body.images || [])
-  console.log(files)
+  console.log(req.body)
 
   Product.findByIdAndUpdate(
     req.params.id,
@@ -157,7 +157,7 @@ export function update(req, res) {
       }
       console.log(req.body.removedImages)
       req.body.removedImages?.forEach((file) => {
-        unlinkSync(image)
+        unlinkSync(file)
       })
       return res.status(200).json({
         success: true,
