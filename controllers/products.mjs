@@ -3,6 +3,23 @@ import Product from '../models/Product.mjs'
 import mongoose from 'mongoose'
 import { unlinkSync } from 'fs'
 
+export async function getSizes(req, res) {
+  try {
+    const sizes = await Product.distinct('size', { size: { $nin: ['', null] } })
+    if (sizes.length === 0) {
+      res.status(404).json({
+        success: true,
+        message: ''
+      })
+    }
+    res.status(200).json({
+      success: true,
+      message: '',
+      data: sizes
+    })
+  } catch (error) {}
+}
+
 export function getAll(req, res) {
   let filter = {}
   if (req.query.categories) {
@@ -11,8 +28,22 @@ export function getAll(req, res) {
   if (req.query.controlStock) {
     filter.stock = { $gt: 0 }
   }
+  if (req.query.sizes) {
+    filter.size = req.query.sizes.split(',')
+  }
+
+  let offset = 0
+  if (req.query.offset) {
+    offset = parseInt(req.query.offset)
+  }
+  let limit = 0
+  if (req.query.limit) {
+    limit = parseInt(req.query.limit)
+  }
 
   Product.find(filter)
+    .skip(offset)
+    .limit(limit)
     .populate('category')
     .then((productList) => {
       return res.status(200).json({
