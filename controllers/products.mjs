@@ -1,7 +1,7 @@
 import Category from '../models/Category.mjs'
 import Product from '../models/Product.mjs'
 import mongoose from 'mongoose'
-import { unlinkSync } from 'fs'
+import { unlinkSync, existsSync } from 'fs'
 
 export async function getSizes(req, res) {
   try {
@@ -188,7 +188,9 @@ export function update(req, res) {
       }
       console.log(req.body.removedImages)
       req.body.removedImages?.forEach((file) => {
-        unlinkSync(file)
+        if (existsSync(file)) {
+          unlinkSync(file)
+        }
       })
       return res.status(200).json({
         success: true,
@@ -216,7 +218,9 @@ export function remove(req, res) {
     .then((product) => {
       if (product) {
         product.images?.forEach((image) => {
-          unlinkSync(image)
+          if (existsSync(image)) {
+            unlinkSync(image)
+          }
         })
         return res.status(200).json({
           success: true,

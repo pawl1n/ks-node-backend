@@ -3,7 +3,7 @@ import fs from 'fs'
 
 const storage = multer.diskStorage({
   destination: function (req, file, cb) {
-    const folderName = req.body.name.replace(' ', '-')
+    const folderName = req.body.name.replaceAll(' ', '-')
     if (folderName && !fs.existsSync('uploads/' + folderName)) {
       fs.mkdirSync('uploads/' + folderName)
     }
