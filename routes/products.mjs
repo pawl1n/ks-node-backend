@@ -7,7 +7,8 @@ import {
   update,
   remove,
   getPrice,
-  getSizes
+  getSizes,
+  getTypes
 } from '../controllers/products.mjs'
 import passport from 'passport'
 import uploadOptions from '../middleware/uploads.mjs'
@@ -24,6 +25,7 @@ router.post(
   create
 )
 router.get('/get/sizes/', getSizes)
+router.get('/get/types/', getTypes)
 router.patch(
   '/:id',
   passport.authenticate('jwt', { session: false }),

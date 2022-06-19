@@ -1,5 +1,7 @@
 import mongoose from 'mongoose'
 
+export const types = ['Men', 'Women', 'Kids']
+
 const productSchema = new mongoose.Schema({
   name: {
     type: String,
@@ -30,6 +32,10 @@ const productSchema = new mongoose.Schema({
   },
   size: {
     type: String
+  },
+  type: {
+    type: String,
+    enum: types
   }
 })
 

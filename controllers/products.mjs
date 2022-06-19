@@ -1,23 +1,50 @@
 import Category from '../models/Category.mjs'
-import Product from '../models/Product.mjs'
+import Product, { types } from '../models/Product.mjs'
 import mongoose from 'mongoose'
 import { unlinkSync, existsSync } from 'fs'
 
 export async function getSizes(req, res) {
   try {
-    const sizes = await Product.distinct('size', { size: { $nin: ['', null] } })
-    if (sizes.length === 0) {
-      res.status(404).json({
-        success: true,
-        message: ''
-      })
+    let filter = {}
+    if (req.query.categories) {
+      filter.category = req.query.categories.split(',')
     }
-    res.status(200).json({
+    if (req.query.types) {
+      filter.type = req.query.types.split(',')
+    }
+
+    filter.size = { $nin: ['', null] }
+
+    const sizes = await Product.distinct('size', filter)
+    return res.status(200).json({
       success: true,
       message: '',
       data: sizes
     })
-  } catch (error) {}
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      success: false,
+      message: error
+    })
+  }
+}
+
+export async function getTypes(req, res) {
+  try {
+    const types = await Product.distinct('type')
+    return res.status(200).json({
+      success: true,
+      message: '',
+      data: types
+    })
+  } catch (error) {
+    console.log(error)
+    return res.status(500).json({
+      success: false,
+      message: error
+    })
+  }
 }
 
 export function getAll(req, res) {
@@ -30,6 +57,9 @@ export function getAll(req, res) {
   }
   if (req.query.sizes) {
     filter.size = req.query.sizes.split(',')
+  }
+  if (req.query.types) {
+    filter.type = req.query.types.split(',')
   }
 
   let offset = 0
@@ -109,6 +139,15 @@ export function create(req, res) {
     })
   }
 
+  if (req.body.type) {
+    if (!types.includes(req.body.type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Неправильний тип товару'
+      })
+    }
+  }
+
   Category.findById(categoryId)
     .then((category) => {
       if (!category) {
@@ -129,7 +168,8 @@ export function create(req, res) {
         category: categoryId,
         article: req.body.article,
         stock: req.body.stock,
-        size: req.body.size
+        size: req.body.size,
+        type: req.body.type
       })
       product
         .save()
@@ -162,7 +202,15 @@ export function update(req, res) {
     files.push(file.path)
   })
   files = files.concat(req.body.images || [])
-  console.log(req.body)
+
+  if (req.body.type) {
+    if (!types.includes(req.body.type)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Неправильний тип товару'
+      })
+    }
+  }
 
   Product.findByIdAndUpdate(
     req.params.id,
@@ -174,7 +222,8 @@ export function update(req, res) {
       category: req.body.category,
       article: req.body.article,
       stock: req.body.stock,
-      size: req.body.size
+      size: req.body.size,
+      type: req.body.type
     },
     { new: true }
   )
