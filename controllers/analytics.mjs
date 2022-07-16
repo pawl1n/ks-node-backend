@@ -19,6 +19,17 @@ export async function overview(req, res) {
 
     const ordersDataByMonth = await Order.aggregate([
       {
+        $match: {
+          date: {
+            $gte: monthAgo,
+            $lte: now
+          },
+          status: {
+            $in: ['Delivered']
+          }
+        }
+      },
+      {
         $group: {
           _id: {
             dayOfMonth: {
