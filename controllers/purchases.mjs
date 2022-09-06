@@ -153,7 +153,7 @@ export async function update(req, res) {
   }
   const session = await mongoose.startSession()
   session.startTransaction()
-  // insecure
+
   let totalPrice = 0
   req.body.list.forEach((item) => {
     totalPrice += +item.cost * +item.quantity
@@ -167,6 +167,7 @@ export async function update(req, res) {
       },
       { session }
     )
+    console.log(purchase)
     if (!purchase) {
       session.endSession()
       return res.status(404).json({
@@ -258,15 +259,16 @@ async function updateProductStock(oldPurchase, purchase, session) {
       if (!product) {
         return `Не знайдено товар ${item.product}`
       } else {
-        product.stock = Number(product.stock) - Number(item.quantity)
-        if (product.stock < 0) {
-          return `Недостатньо товару "${product.name}" у кількості ${Math.abs(
-            product.stock
-          )} шт.`
+        const element =
+          product.sizes?.length > 0
+            ? product.sizes.find((el) => el._id == item.size)
+            : product
+        if (element) {
+          element.stock = Number(element.stock) - Number(item.quantity)
+          await Product.findByIdAndUpdate(item.product, product, {
+            session
+          })
         }
-        await Product.findByIdAndUpdate(item.product, product, {
-          session
-        })
       }
     }
   }
@@ -276,10 +278,16 @@ async function updateProductStock(oldPurchase, purchase, session) {
       if (!product) {
         return `Не знайдено товар ${item.product}`
       } else {
-        product.stock = Number(product.stock) + Number(item.quantity)
-        await Product.findByIdAndUpdate(item.product, product, {
-          session
-        })
+        const element =
+          product.sizes?.length > 0
+            ? product.sizes.find((el) => el._id == item.size)
+            : product
+        if (size) {
+          element.stock = Number(element.stock) + Number(item.quantity)
+          await Product.findByIdAndUpdate(item.product, product, {
+            session
+          })
+        }
       }
     }
   }

@@ -48,6 +48,17 @@ export async function overview(req, res) {
 
     const purchasesData = await Purchase.aggregate([
       {
+        $match: {
+          date: {
+            $gte: monthAgo,
+            $lte: now
+          },
+          status: {
+            $in: ['Delivered']
+          }
+        }
+      },
+      {
         $group: {
           _id: null,
           totalSum: {
@@ -58,6 +69,17 @@ export async function overview(req, res) {
     ])
 
     const ordersData = await Order.aggregate([
+      {
+        $match: {
+          date: {
+            $gte: monthAgo,
+            $lte: now
+          },
+          status: {
+            $in: ['Delivered']
+          }
+        }
+      },
       {
         $group: {
           _id: null,

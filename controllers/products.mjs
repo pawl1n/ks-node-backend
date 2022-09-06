@@ -15,7 +15,7 @@ export async function getSizes(req, res) {
 
     filter.size = { $nin: ['', null] }
 
-    const sizes = await Product.distinct('size', filter)
+    const sizes = await Product.distinct('sizes.name', filter)
     return res.status(200).json({
       success: true,
       message: '',
@@ -32,7 +32,7 @@ export async function getSizes(req, res) {
 
 export async function getTypes(req, res) {
   try {
-    const types = await Product.distinct('type')
+    const types = await Product.distinct('type', { type: { $ne: '' } })
     return res.status(200).json({
       success: true,
       message: '',
@@ -48,20 +48,41 @@ export async function getTypes(req, res) {
 }
 
 export function getAll(req, res) {
-  let filter = {}
+  const filters = []
   if (req.query.categories) {
-    filter.category = req.query.categories.split(',')
+    filters.push({ category: req.query.categories.split(',') })
   }
+  let stockFilter = {}
   if (req.query.controlStock) {
-    filter.stock = { $gt: 0 }
+    const stock = { $gt: 0 }
+    stockFilter = {
+      $or: [
+        {
+          'sizes.stock': stock
+        },
+        {
+          // if product doesn't have sizes
+          stock: stock,
+          'sizes.0': {
+            $exists: false
+          }
+        }
+      ]
+    }
+    filters.push(stockFilter)
   }
   if (req.query.sizes) {
-    filter.size = req.query.sizes.split(',')
+    filters.push({
+      'sizes.name': req.query.sizes.split(',')
+    })
   }
   if (req.query.types) {
-    filter.type = req.query.types.split(',')
+    filters.push({
+      type: {
+        $in: req.query.types.split(',')
+      }
+    })
   }
-
   let offset = 0
   if (req.query.offset) {
     offset = parseInt(req.query.offset)
@@ -70,7 +91,7 @@ export function getAll(req, res) {
   if (req.query.limit) {
     limit = parseInt(req.query.limit)
   }
-
+  const filter = filters.length ? { $and: filters } : {}
   Product.find(filter)
     .skip(offset)
     .limit(limit)
@@ -165,10 +186,10 @@ export function create(req, res) {
         description: req.body.description,
         images: files ? files : null,
         price: req.body.price,
+        stock: req.body.stock,
         category: categoryId,
         article: req.body.article,
-        stock: req.body.stock,
-        size: req.body.size,
+        sizes: JSON.parse(req.body.sizes ?? ''),
         type: req.body.type
       })
       product
@@ -211,7 +232,6 @@ export function update(req, res) {
       })
     }
   }
-
   Product.findByIdAndUpdate(
     req.params.id,
     {
@@ -219,11 +239,11 @@ export function update(req, res) {
       description: req.body.description,
       images: files,
       price: req.body.price,
+      stock: req.body.stock,
       category: req.body.category,
       article: req.body.article,
-      stock: req.body.stock,
-      size: req.body.size,
-      type: req.body.type
+      type: req.body.type,
+      sizes: JSON.parse(req.body.sizes ?? '')
     },
     { new: true }
   )
@@ -318,26 +338,46 @@ export async function getPrice(req, res) {
 
       for (let item of req.body.items) {
         const product = await Product.findById(item.id)
+        let price = 0
+        let stock = 0
+        let sizeName = ''
+        if (item.size) {
+          const size = product.sizes.find((el) => {
+            return el.name == item.size
+          })
+          price = size.price
+          stock = size.stock
+          sizeName = size.name
+        } else if (product.sizes.length) {
+          return res.status(404).json({
+            success: false,
+            message: `Необхідно обрати розмір для товару ${item.name}`
+          })
+        } else {
+          price = product.price
+          stock = product.stock
+        }
+
         if (!product) {
           return res.status(404).json({
             success: false,
-            message: `Товар ${item.name}  не знайдено, будь-ласка, видаліть його з кошику`
+            message: `Товар ${item.name} не знайдено, будь-ласка, видаліть його з кошику`
           })
-        } else if (product.stock < item.quantity) {
+        } else if (stock < item.quantity) {
           throw `Недостатньо товару ${product.name} у кількості ${
-            item.quantity - product.stock
+            item.quantity - stock
           }`
         } else {
-          let subTotal = item.quantity * product.price
+          let subTotal = item.quantity * price
           ans.items.push({
             id: product._id,
             name: product.name,
             quantity: item.quantity,
             stock: product.stock,
-            cost: product.price,
+            cost: price,
             subTotal: subTotal,
             article: product.article,
-            size: product.size
+            size: sizeName
           })
           ans.totalPrice += subTotal
         }
@@ -345,7 +385,6 @@ export async function getPrice(req, res) {
 
       return res.status(200).json({
         success: true,
-        message: '',
         data: ans
       })
     } else {

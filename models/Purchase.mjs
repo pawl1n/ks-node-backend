@@ -16,6 +16,9 @@ const purchaseSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         required: true
       },
+      size: {
+        type: String
+      },
       quantity: {
         type: Number,
         required: true

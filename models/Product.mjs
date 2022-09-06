@@ -16,8 +16,10 @@ const productSchema = new mongoose.Schema({
     }
   ],
   price: {
-    type: Number,
-    required: true
+    type: Number
+  },
+  stock: {
+    type: Number
   },
   category: {
     ref: 'Category',
@@ -26,17 +28,25 @@ const productSchema = new mongoose.Schema({
   article: {
     type: String
   },
-  stock: {
-    type: Number,
-    default: 0
-  },
-  size: {
-    type: String
-  },
   type: {
     type: String,
     enum: types
-  }
+  },
+  sizes: [
+    {
+      name: {
+        type: String,
+        unique: true,
+        required: true
+      },
+      price: {
+        type: Number
+      },
+      stock: {
+        type: Number
+      }
+    }
+  ]
 })
 
 export default mongoose.model('Product', productSchema)

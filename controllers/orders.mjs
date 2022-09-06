@@ -152,18 +152,27 @@ export async function create(req, res) {
   let list = []
 
   for (let item of req.body.list) {
-    if (item.id) {
-      const product = await Product.findById(item.id)
+    if (item.product) {
+      const product = await Product.findById(item.product)
       if (!product) {
-        throw `Не знайдено товар ${item.id}`
+        throw `Не знайдено товар ${item.product}`
       }
-      console.log(product, item)
-      totalPrice += +product.price * +item.quantity
-      list.push({
+      const listItem = {
         product: product._id,
-        quantity: item.quantity,
-        cost: product.price
-      })
+        quantity: item.quantity
+      }
+      if (item.size) {
+        const size = product.sizes?.find(
+          (o) => o.name == item.size || o._id == item.size
+        )
+        totalPrice += +size.price * +item.quantity
+        listItem.cost = size.price
+        listItem.size = size._id
+      } else {
+        totalPrice += +product.price * +item.quantity
+        listItem.cost = product.price
+      }
+      list.push(listItem)
     } else {
       totalPrice += +item.cost * +item.quantity
       list.push(item)
@@ -340,28 +349,44 @@ async function updateProductStock(oldOrder, order, session) {
   const canceled = 'Canceled'
   if (oldOrder && oldOrder.list && oldOrder.status != canceled) {
     for (let item of oldOrder.list) {
-      const product = await Product.findById(item.product)
+      const product = await Product.findById(item.product, null, { session })
       if (!product) {
         return `Не знайдено товар ${item.product}`
       } else {
-        product.stock = Number(product.stock) + Number(item.quantity)
-        await Product.findByIdAndUpdate(item.product, product, { session })
+        const element =
+          product.sizes?.length > 0
+            ? product.sizes.find((el) => el._id == item.size)
+            : product
+        if (element) {
+          element.stock = Number(element.stock) + Number(item.quantity)
+          await Product.findByIdAndUpdate(item.product, product, {
+            session
+          })
+        }
       }
     }
   }
   if (order && order.list && order.status != canceled) {
     for (let item of order.list) {
-      const product = await Product.findById(item.product)
+      const product = await Product.findById(item.product, null, { session })
       if (!product) {
         return `Не знайдено товар ${item.product}`
       } else {
-        product.stock = Number(product.stock) - Number(item.quantity)
-        if (product.stock < 0) {
-          return `Недостатньо товару "${product.name}" у кількості ${Math.abs(
-            product.stock
-          )} шт.`
+        const element =
+          product.sizes?.length > 0
+            ? product.sizes.find((el) => el._id == item.size)
+            : product
+        if (element) {
+          element.stock = Number(element.stock) - Number(item.quantity)
+          if (element.stock < 0) {
+            return `Недостатньо товару "${product.name}"${
+              product.sizes?.length > 0 ? ' з розміром ' + element.name : ''
+            } у кількості ${Math.abs(element.stock)} шт.`
+          }
+          await Product.findByIdAndUpdate(item.product, product, {
+            session
+          })
         }
-        await Product.findByIdAndUpdate(item.product, product, { session })
       }
     }
   }
